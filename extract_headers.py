@@ -54,15 +54,23 @@ def parse_kdbx4_header(file_path):
         iterations = None
 
         if kdf_parameters:
-            # Assuming salt is the first part of the KDF parameters and iterations are stored next
-            # KDF Parameters format assumption: [salt (length N)] + [iterations (4 bytes)]
+            print(f"\nKDF Parameters (raw): {kdf_parameters.hex()}")
             
-            # Extract the salt (assuming it starts from the beginning of the KDF parameters and is a fixed size)
+            # Assuming the first part of the KDF parameters is the salt
             salt_length = struct.unpack("<I", kdf_parameters[0:4])[0]  # The first 4 bytes store the salt length
-            salt = kdf_parameters[4:4+salt_length]  # Extract salt based on the length
+            print(f"Salt length: {salt_length}")
             
-            # Extract the number of iterations (after the salt)
-            iterations = struct.unpack("<I", kdf_parameters[4+salt_length:8+salt_length])[0]  # 4 bytes for iterations
+            salt = kdf_parameters[4:4+salt_length]  # Extract salt based on the length
+            print(f"Salt: {salt.hex()}")
+            
+            # Now check if there are iterations and extract them
+            if len(kdf_parameters) >= 4 + salt_length + 4:  # Ensure enough bytes for iterations
+                iterations = struct.unpack("<I", kdf_parameters[4+salt_length:8+salt_length])[0]  # 4 bytes for iterations
+                print(f"Iterations: {iterations}")
+            else:
+                print("Iterations field not found in KDF Parameters.")
+        else:
+            print("KDF Parameters not found.")
 
         # Step 7: Print extracted fields
         if encryption_iv:
@@ -74,16 +82,6 @@ def parse_kdbx4_header(file_path):
             print(f"Master Seed: {master_seed.hex()}")
         else:
             print("\nMaster Seed not found!")
-
-        if salt:
-            print(f"Salt: {salt.hex()}")
-        else:
-            print("\nSalt not found!")
-
-        if iterations is not None:
-            print(f"Iterations: {iterations}")
-        else:
-            print("\nIterations not found!")
 
     return {
         "iv": encryption_iv,
