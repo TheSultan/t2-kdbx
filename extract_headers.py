@@ -47,7 +47,7 @@ def parse_kdbx4_header(file_path):
         # Step 5: Extract specific fields
         encryption_iv = fields.get(b"\x07")  # IV
         master_seed = fields.get(b"\x04")  # Master seed
-        transform_seed = fields.get(b"\x0C")  # Transform seed
+        transform_seed = fields.get(b"\x05")  # Transform seed (corrected to 0x05)
 
         # KDF Parameters are stored in Field ID 0x0B for KDF_AES_KDBX4
         kdf_parameters = fields.get(b"\x0B")  # KDF parameters (binary blob)
