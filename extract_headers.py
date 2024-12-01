@@ -47,12 +47,24 @@ def parse_kdbx4_header(file_path):
         # Step 5: Extract specific fields
         encryption_iv = fields.get(b"\x07")  # IV
         master_seed = fields.get(b"\x04")  # Master seed
-        transform_seed = fields.get(b"\x05")  # Transform seed (corrected to 0x05)
-
-        # KDF Parameters are stored in Field ID 0x0B for KDF_AES_KDBX4
         kdf_parameters = fields.get(b"\x0B")  # KDF parameters (binary blob)
 
-        # Step 6: Print extracted fields
+        # Step 6: Extract salt and iterations from KDF Parameters
+        salt = None
+        iterations = None
+
+        if kdf_parameters:
+            # Assuming salt is the first part of the KDF parameters and iterations are stored next
+            # KDF Parameters format assumption: [salt (length N)] + [iterations (4 bytes)]
+            
+            # Extract the salt (assuming it starts from the beginning of the KDF parameters and is a fixed size)
+            salt_length = struct.unpack("<I", kdf_parameters[0:4])[0]  # The first 4 bytes store the salt length
+            salt = kdf_parameters[4:4+salt_length]  # Extract salt based on the length
+            
+            # Extract the number of iterations (after the salt)
+            iterations = struct.unpack("<I", kdf_parameters[4+salt_length:8+salt_length])[0]  # 4 bytes for iterations
+
+        # Step 7: Print extracted fields
         if encryption_iv:
             print(f"\nInitialization Vector (IV): {encryption_iv.hex()}")
         else:
@@ -60,21 +72,24 @@ def parse_kdbx4_header(file_path):
 
         if master_seed:
             print(f"Master Seed: {master_seed.hex()}")
-
-        if transform_seed:
-            print(f"Transform Seed: {transform_seed.hex()}")
-
-        if kdf_parameters:
-            print("\nKDF Parameters (raw):")
-            print(kdf_parameters.hex())
         else:
-            print("\nKDF Parameters not found!")
+            print("\nMaster Seed not found!")
+
+        if salt:
+            print(f"Salt: {salt.hex()}")
+        else:
+            print("\nSalt not found!")
+
+        if iterations is not None:
+            print(f"Iterations: {iterations}")
+        else:
+            print("\nIterations not found!")
 
     return {
         "iv": encryption_iv,
         "master_seed": master_seed,
-        "transform_seed": transform_seed,
-        "kdf_parameters": kdf_parameters,
+        "salt": salt,
+        "iterations": iterations,
     }
 
 
