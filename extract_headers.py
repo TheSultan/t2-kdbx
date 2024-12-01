@@ -2,39 +2,55 @@ import struct
 
 def parse_kdbx4_header(file_path):
     with open(file_path, "rb") as f:
-        # Read the file signature
+        # Step 1: Verify file signature
         signature = f.read(8)
         if signature != b"\x03\xD9\xA2\x9A\x67\xFB\x4B\xB5":
             raise ValueError("Invalid KDBX 4.x file signature.")
         
         print(f"File signature: {signature.hex()}")
 
-        # Read the file version
+        # Step 2: Verify file version
         version = struct.unpack("<I", f.read(4))[0]
         print(f"File version: {version}")
 
-        # Start parsing the header fields
+        # Step 3: Parse header fields
         fields = {}
         while True:
-            field_id = f.read(1)  # Field ID byte
-            if field_id == b"\x00":  # End of header fields
+            field_id = f.read(1)  # Read 1 byte for the field ID
+            if not field_id:
+                print("Unexpected end of file while reading field ID.")
                 break
 
-            field_length = struct.unpack("<H", f.read(2))[0]  # Length of the field (little-endian)
-            field_data = f.read(field_length)  # Read the actual field data
+            if field_id == b"\x00":  # Field ID 0x00 marks the end of header fields
+                print("End of header reached.")
+                break
+
+            # Read 4 bytes for the field length (little-endian unsigned integer)
+            field_length_bytes = f.read(4)
+            if len(field_length_bytes) != 4:
+                print("Unexpected end of file while reading field length.")
+                break
+
+            field_length = struct.unpack("<I", field_length_bytes)[0]  # Decode as little-endian
+            field_data = f.read(field_length)  # Read the field data of the specified length
+            if len(field_data) != field_length:
+                print("Unexpected end of file while reading field data.")
+                break
 
             fields[field_id] = field_data
 
+        # Step 4: Debug output for all fields
         print("\nHeader fields:")
         for field_id, data in fields.items():
             print(f"  Field ID {field_id.hex()}: {data.hex()}")
 
-        # Extract specific fields
+        # Step 5: Extract specific fields
         encryption_iv = fields.get(b"\x07")  # IV
-        kdf_parameters = fields.get(b"\x0D")  # KDF parameters (as binary blob)
+        kdf_parameters = fields.get(b"\x0D")  # KDF parameters (binary blob)
         master_seed = fields.get(b"\x04")  # Master seed
-        transform_seed = fields.get(b"\x0C")  # Transform seed (for KDF)
+        transform_seed = fields.get(b"\x0C")  # Transform seed
 
+        # Step 6: Print extracted fields
         if encryption_iv:
             print(f"\nInitialization Vector (IV): {encryption_iv.hex()}")
         else:
@@ -60,8 +76,8 @@ def parse_kdbx4_header(file_path):
     }
 
 
-# Run the parser
-file_path = "Passwords.kdbx"  # Replace with your KeePassXC database file path
+# Usage example
+file_path = "your_database.kdbx"  # Replace with the actual path to your KeePass database
 header_data = parse_kdbx4_header(file_path)
 
-# Save or further process the extracted parameters as needed
+# Use the extracted fields as needed for further processing
