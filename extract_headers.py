@@ -55,20 +55,19 @@ def parse_kdbx4_header(file_path):
 
         if kdf_parameters:
             print(f"\nKDF Parameters (raw): {kdf_parameters.hex()}")
-            
-            # Assuming the first part of the KDF parameters is the salt
-            salt_length = struct.unpack("<I", kdf_parameters[0:4])[0]  # The first 4 bytes store the salt length
-            print(f"Salt length: {salt_length}")
-            
-            salt = kdf_parameters[4:4+salt_length]  # Extract salt based on the length
+
+            # Extract salt (32 bytes for AES-256 salt)
+            salt = kdf_parameters[:32]  # First 32 bytes could be the salt
             print(f"Salt: {salt.hex()}")
-            
-            # Now check if there are iterations and extract them
-            if len(kdf_parameters) >= 4 + salt_length + 4:  # Ensure enough bytes for iterations
-                iterations = struct.unpack("<I", kdf_parameters[4+salt_length:8+salt_length])[0]  # 4 bytes for iterations
+
+            # Extract iterations (4 bytes after the salt)
+            remaining_data = kdf_parameters[32:]  # Everything after the salt
+            if len(remaining_data) >= 4:
+                iterations = struct.unpack("<I", remaining_data[:4])[0]  # 4 bytes for iterations
                 print(f"Iterations: {iterations}")
             else:
-                print("Iterations field not found in KDF Parameters.")
+                print("Iterations field is too short or missing!")
+
         else:
             print("KDF Parameters not found.")
 
