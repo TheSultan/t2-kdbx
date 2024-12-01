@@ -1,12 +1,11 @@
 import struct
 
-def parse_kdbx_header(file_path):
+def parse_kdbx4_header(file_path):
     with open(file_path, "rb") as f:
         # Read the file signature
         signature = f.read(8)
-        #if signature != b"\x03\xD9\xA2\x9A\xF5\x7B\x67\xFB":
         if signature != b"\x03\xD9\xA2\x9A\x67\xFB\x4B\xB5":
-            raise ValueError("Invalid KeePass file signature.")
+            raise ValueError("Invalid KDBX 4.x file signature.")
         
         print(f"File signature: {signature.hex()}")
 
@@ -17,12 +16,12 @@ def parse_kdbx_header(file_path):
         # Start parsing the header fields
         fields = {}
         while True:
-            field_id = f.read(1)
+            field_id = f.read(1)  # Field ID byte
             if field_id == b"\x00":  # End of header fields
                 break
 
-            field_length = struct.unpack("<H", f.read(2))[0]
-            field_data = f.read(field_length)
+            field_length = struct.unpack("<H", f.read(2))[0]  # Length of the field (little-endian)
+            field_data = f.read(field_length)  # Read the actual field data
 
             fields[field_id] = field_data
 
@@ -33,11 +32,19 @@ def parse_kdbx_header(file_path):
         # Extract specific fields
         encryption_iv = fields.get(b"\x07")  # IV
         kdf_parameters = fields.get(b"\x0D")  # KDF parameters (as binary blob)
+        master_seed = fields.get(b"\x04")  # Master seed
+        transform_seed = fields.get(b"\x0C")  # Transform seed (for KDF)
 
         if encryption_iv:
             print(f"\nInitialization Vector (IV): {encryption_iv.hex()}")
         else:
             print("\nInitialization Vector not found!")
+
+        if master_seed:
+            print(f"Master Seed: {master_seed.hex()}")
+
+        if transform_seed:
+            print(f"Transform Seed: {transform_seed.hex()}")
 
         if kdf_parameters:
             print("\nKDF Parameters (raw):")
@@ -45,11 +52,16 @@ def parse_kdbx_header(file_path):
         else:
             print("\nKDF Parameters not found!")
 
-    return encryption_iv, kdf_parameters
+    return {
+        "iv": encryption_iv,
+        "master_seed": master_seed,
+        "transform_seed": transform_seed,
+        "kdf_parameters": kdf_parameters,
+    }
 
 
 # Run the parser
 file_path = "Passwords.kdbx"  # Replace with your KeePassXC database file path
-iv, kdf_params = parse_kdbx_header(file_path)
+header_data = parse_kdbx4_header(file_path)
 
 # Save or further process the extracted parameters as needed
